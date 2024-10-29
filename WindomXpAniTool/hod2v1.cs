@@ -32,7 +32,7 @@ namespace WindomXpAniTool
 
         public bool loadFromBinary(ref BinaryReader br, ref hod2v0 structure)
         {
-            
+
             //data = br.ReadBytes(11 + (partCount * 179));
             string signature = new string(br.ReadChars(3));
             int version = br.ReadInt32();
@@ -84,9 +84,9 @@ namespace WindomXpAniTool
             return true;
         }
 
-        public void saveToBinary(ref BinaryWriter bw)
+        public void SaveToBinary(ref BinaryWriter bw)
         {
-            
+
             //bw.Write(data);
             bw.Write(ASCIIEncoding.ASCII.GetBytes("HD2"));
             bw.Write(1);
@@ -121,23 +121,58 @@ namespace WindomXpAniTool
             }
         }
 
-        public void saveToFile(string folder, int type)
+        public void SaveToFile(string folder, int type)
         {
+            // ディレクトリーの作成
+            DirectoryInfo di = Directory.CreateDirectory(folder);
+
+            // ファイル名の作成
+            string invalidChars = new string(Path.GetInvalidPathChars());
+            string fileName = Path.GetInvalidFileNameChars().Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_"));
+
+            // フォルダ名の作成
+            string subFolder = "";
+            for (int i = 0; i < 100; i++)
+            {
+                subFolder = Path.Combine(folder, i.ToString("D2"));
+                if (!Directory.Exists(subFolder))
+                {
+                    Directory.CreateDirectory(subFolder);
+                    break;
+                }
+            }
+
+            // ファイルパスの作成
+            string filePath = Path.Combine(subFolder, fileName);
+
             if (type == 0)
             {
-                BinaryWriter bw = new BinaryWriter(File.Open(Path.Combine(folder, filename), FileMode.Create));
-                saveToBinary(ref bw);
+                // バイナリーファイルの保存
+                filePath += ".hod";
+                BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.CreateNew));
+                SaveToBinary(ref bw);
                 bw.Close();
+
             }
-            else if (type == 1)
-                saveToXML(folder);
+            if (type == 1)
+            {
+                // XMLファイルの保存
+                filePath += ".xml";
+                saveToXML(subFolder);
+            }
         }
 
         public void saveToXML(string folder)
         {
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
-            using (XmlWriter xw = XmlWriter.Create(Path.Combine(folder, filename + ".xml"), xws))
+            // ファイル名の作成
+            string invalidChars = new string(Path.GetInvalidPathChars());
+            string fileName = Path.GetInvalidFileNameChars()
+                .Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_")) + ".xml";
+            string filePath = Path.Combine(folder, fileName);
+
+            using (XmlWriter xw = XmlWriter.Create(filePath, xws))
             {
                 xw.WriteStartDocument();
                 xw.WriteStartElement("HOD");
@@ -195,7 +230,7 @@ namespace WindomXpAniTool
             }
         }
 
-        public void loadFromFile(string filepath,ref hod2v0 structure)
+        public void loadFromFile(string filepath, ref hod2v0 structure)
         {
             FileInfo f = new FileInfo(filepath);
             helper.log(f.Extension);

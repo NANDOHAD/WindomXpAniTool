@@ -21,20 +21,33 @@ namespace WindomXpAniTool
 
         private void loadAniToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Windom Animation Data (.ani)|*.ani";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
+                // 一度に削除する要素をキャプチャするために別リストを使用
+                List<int> indexesToRemove = new List<int>();
+
                 for (int i = 0; i < recentFiles.Count; i++)
                 {
                     if (recentFiles[i] == ofd.FileName)
-                        recentFiles.RemoveAt(i);
+                        indexesToRemove.Add(i);
                 }
+
+                // 逆順に削除することでインデックスのずれを防ぐ
+                for (int i = indexesToRemove.Count - 1; i >= 0; i--)
+                {
+                    recentFiles.RemoveAt(indexesToRemove[i]);
+                }
+
                 recentFiles.Insert(0, ofd.FileName);
+
+                // 要素が10を超える場合は最後の要素を削除
                 if (recentFiles.Count > 10)
-                    recentFiles.RemoveAt(11);
+                    recentFiles.RemoveAt(recentFiles.Count - 1);
+
                 updateRecent();
+
                 try
                 {
                     saveData();
@@ -42,6 +55,19 @@ namespace WindomXpAniTool
                     lstAnimations.Items.Clear();
                     for (int i = 0; i < file.animations.Count; i++)
                     {
+                        if (file.animations[i].name == "")
+                        {
+                            file.animations[i].name = "Empty";
+                        }
+                        else
+                        {
+                            // 禁止文字を置換する
+                            string invalidChars = @"\/:*?""<>|";
+                            foreach (char c in invalidChars)
+                            {
+                                file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                            }
+                        }
                         lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
                     }
 
@@ -53,7 +79,6 @@ namespace WindomXpAniTool
                 }
             }
         }
-
         private void button3_Click(object sender, EventArgs e)
         {
             if (lstAnimations.SelectedItems.Count > 0 && cbScriptFormat.SelectedIndex > -1 && cbHodFormat.SelectedIndex > -1)
@@ -98,26 +123,67 @@ namespace WindomXpAniTool
 
         private void button1_Click(object sender, EventArgs e)
         {
-            DirectoryInfo di = new DirectoryInfo(file._filename);
+            if (file != null && file.structure != null)
+            {
+                DirectoryInfo di = new DirectoryInfo(file._filename);
 
-            //BinaryWriter bw = new BinaryWriter(File.Open(Path.Combine(di.Parent.Name, file.structure.filename), FileMode.CreateNew));
-            //bw.Write(file.structure.data);
-            //bw.Close();
-            if (cbHodFormat.SelectedIndex > -1)
-                file.structure.saveToFile(di.Parent.Name, cbHodFormat.SelectedIndex);
+                if (cbHodFormat.SelectedIndex > -1)
+                {
+                    // UIスレッドでSaveToFileを呼び出す（必要な場合）
+                    if (this.InvokeRequired)
+                    {
+                        this.Invoke(new Action(() =>
+                        {
+                            file.structure.SaveToFile(di.Parent.Name, cbHodFormat.SelectedIndex);
+                        }));
+                    }
+                    else
+                    {
+                        file.structure.SaveToFile(di.Parent.Name, cbHodFormat.SelectedIndex);
+                    }
+                }
+                else
+                {
+                    MsgLog.Text = "Hod Format not selected";
+                }
+            }
             else
-                MsgLog.Text = "Hod Format not selected";
+            {
+                MsgLog.Text = "File or file structure is null.";
+            }
         }
 
-        private void saveAniToolStripMenuItem_Click(object sender, EventArgs e)
+        private void SaveAniToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Filter = "Windom Animation Data (.ani)|*.ani";
-            DirectoryInfo di = new DirectoryInfo(file._filename);
-            sfd.InitialDirectory = di.FullName;
-            if (sfd.ShowDialog() == DialogResult.OK)
+            if (file != null)
             {
-                file.save(sfd.FileName);
+                SaveFileDialog sfd = new SaveFileDialog();
+                sfd.Filter = "Windom Animation Data (.ani)|*.ani";
+                DirectoryInfo di = new DirectoryInfo(file._filename);
+                sfd.InitialDirectory = di.FullName;
+
+                // UIスレッドでShowDialogを呼び出す
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        if (sfd.ShowDialog() == DialogResult.OK)
+                        {
+                            file.save(sfd.FileName);
+                        }
+                    }));
+                }
+                else
+                {
+                    if (sfd.ShowDialog() == DialogResult.OK)
+                    {
+                        file.save(sfd.FileName);
+                    }
+                }
+            }
+            else
+            {
+                MsgLog.Text = "File is null.";
             }
         }
 
@@ -148,9 +214,68 @@ namespace WindomXpAniTool
 
         private void button2_Click(object sender, EventArgs e)
         {
-            DirectoryInfo di = new DirectoryInfo(file._filename);
-            di = di.Parent;
-            file.structure.loadFromFile(Path.Combine(di.Parent.Name, file.structure.filename));
+            Console.WriteLine("file._filename: " + file._filename);
+            Console.WriteLine("file.structure.filename: " + file.structure.filename);
+
+            try
+            {
+                DirectoryInfo di = new DirectoryInfo(file._filename);
+                di = di.Parent;
+
+                if (di == null || di.Parent == null)
+                {
+                    Console.WriteLine("Parent directory is null. Check the file path.");
+                    return;
+                }
+
+                string parentPath = di.Parent.FullName;
+
+                // 無効な文字を置き換える
+                parentPath = ReplaceInvalidPathChars(parentPath);
+                string exten = ".xml";
+                string cleanedFilename = ReplaceInvalidPathChars(file.structure.filename) + exten;
+
+                string combinedPath = Path.Combine(parentPath, cleanedFilename);
+                Console.WriteLine("Combined Path: " + combinedPath);
+
+                // ファイルが存在するかどうかチェック
+                if (!File.Exists(combinedPath))
+                {
+                    // ファイルが存在しない場合、ダイアログを表示
+                    MessageBox.Show("指定のファイルが存在しません: " + combinedPath, "ファイルが見つかりません", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                file.structure.loadFromFile(combinedPath);
+            }
+            catch (ArgumentException ex)
+            {
+                Console.WriteLine("ArgumentException: " + ex.Message);
+            }
+        }
+
+        private string ReplaceInvalidPathChars(string path)
+        {
+            char[] invalidChars = Path.GetInvalidPathChars();
+            foreach (char c in invalidChars)
+            {
+                path = path.Replace(c, '_');
+            }
+            return path;
+        }
+
+        private bool ContainsInvalidPathChars(string path)
+        {
+            char[] invalidChars = Path.GetInvalidPathChars();
+            foreach (char c in path)
+            {
+                if (Array.Exists(invalidChars, element => element == c))
+                {
+                    Console.WriteLine("Invalid character found: " + c);
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void selectAllToolStripMenuItem_Click(object sender, EventArgs e)
@@ -186,7 +311,9 @@ namespace WindomXpAniTool
 
         private void saveData()
         {
-            try
+            if (file != null)
+            {
+                try
             {
                 StreamWriter sw = new StreamWriter("Settings.txt");
                 sw.WriteLine(cbScriptFormat.SelectedIndex);
@@ -196,6 +323,11 @@ namespace WindomXpAniTool
                 sw.Close();
             }
             catch { };
+            }
+            else
+            {
+                MsgLog.Text = "File is null.";
+            }
         }
 
         private void updateRecent()
@@ -304,6 +436,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
 
@@ -316,6 +461,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -327,6 +485,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -338,6 +509,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -349,6 +533,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -360,6 +557,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -371,6 +581,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -382,6 +605,19 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
@@ -393,20 +629,55 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
+                if (file.animations[i].name == "")
+                {
+                    file.animations[i].name = "Empty";
+                }
+                else
+                {
+                    // 禁止文字を置換する
+                    string invalidChars = @"\/:*?""<>|";
+                    foreach (char c in invalidChars)
+                    {
+                        file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                    }
+                }
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
         }
 
         private void toolStripMenuItem11_Click(object sender, EventArgs e)
         {
-            file.load(recentFiles[9]);
-            loadFileIntoRecent(recentFiles[9]);
-            lstAnimations.Items.Clear();
-            for (int i = 0; i < file.animations.Count; i++)
+            if (file != null && file.animations != null && recentFiles.Count > 9)
             {
-                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
+                file.load(recentFiles[9]);
+                loadFileIntoRecent(recentFiles[9]);
+                lstAnimations.Items.Clear();
+                for (int i = 0; i < file.animations.Count; i++)
+                {
+                    if (file.animations[i].name == "")
+                    {
+                        file.animations[i].name = "Empty";
+                    }
+                    else
+                    {
+                        // 禁止文字を置換する
+                        string invalidChars = @"\\/:*?""<>|";
+                        foreach (char c in invalidChars)
+                        {
+                            file.animations[i].name = file.animations[i].name.Replace(c, '@');
+                        }
+                    }
+                    lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
+                }
+            }
+            else
+            {
+                MsgLog.Text = "File, file animations, or recent files are invalid.";
             }
         }
+
+
 
         private void cbScriptFormat_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -418,24 +689,33 @@ namespace WindomXpAniTool
             saveData();
         }
 
+
         private void renameSelectedToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            for (int i = 0; i < lstAnimations.Items.Count; i++)
+            if (file != null && file.animations != null)
             {
-                if (lstAnimations.GetSelected(i))
+                for (int i = 0; i < lstAnimations.Items.Count; i++)
                 {
-                    RenameAnimation ra = new RenameAnimation();
-                    ra.setTxtName(file.animations[i].name);
-                    ra.ShowDialog();
-                    file.animations[i].name = ra.getTxtName();
+                    if (lstAnimations.GetSelected(i))
+                    {
+                        RenameAnimation ra = new RenameAnimation();
+                        ra.setTxtName(file.animations[i].name);
+                        ra.ShowDialog();
+                        file.animations[i].name = ra.getTxtName();
+                    }
+                }
+
+                lstAnimations.Items.Clear();
+                for (int i = 0; i < file.animations.Count; i++)
+                {
+                    lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
                 }
             }
-
-            lstAnimations.Items.Clear();
-            for (int i = 0; i < file.animations.Count; i++)
+            else
             {
-                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
+                MsgLog.Text = "File or file animations is null.";
             }
         }
+
     }
 }

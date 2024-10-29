@@ -101,7 +101,7 @@
             this.saveAniToolStripMenuItem.Name = "saveAniToolStripMenuItem";
             this.saveAniToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.saveAniToolStripMenuItem.Text = "Save Ani";
-            this.saveAniToolStripMenuItem.Click += new System.EventHandler(this.saveAniToolStripMenuItem_Click);
+            this.saveAniToolStripMenuItem.Click += new System.EventHandler(this.SaveAniToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 

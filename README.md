@@ -1,2 +1,2 @@
 # WindomXpAniTool
-Tool to edit Ani file of the game windom xp
+日本語環境と細かなバグフィックスに対応したフォーク版です。

@@ -29,7 +29,7 @@ namespace WindomXpAniTool
 
         public bool loadFromBinary(ref BinaryReader br)
         {
-            
+
             //data = br.ReadBytes(11 + (partCount * 399));
             string signature = new string(br.ReadChars(3));
             int version = br.ReadInt32();
@@ -101,63 +101,97 @@ namespace WindomXpAniTool
             }
         }
 
-        public void saveToFile(string folder, int type)
+        public void SaveToFile(string folder, int type)
         {
-            DirectoryInfo di;
-            di = Directory.CreateDirectory(folder);
+            // ディレクトリーの作成
+            DirectoryInfo di = Directory.CreateDirectory(folder);
 
+            // ファイル名の作成
+            string invalidChars = new string(Path.GetInvalidPathChars());
+            string fileName = Path.GetInvalidFileNameChars().Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_"));
+
+            // フォルダ名の作成
+            string subFolder = "";
+            for (int i = 0; i < 100; i++)
+            {
+                subFolder = Path.Combine(folder, i.ToString("D2"));
+                if (!Directory.Exists(subFolder))
+                {
+                    Directory.CreateDirectory(subFolder);
+                    break;
+                }
+            }
+
+            // ファイルパスの作成
+            string filePath = Path.Combine(subFolder, fileName);
+            
             if (type == 0)
             {
-                BinaryWriter bw = new BinaryWriter(File.Open(Path.Combine(folder, filename), FileMode.CreateNew));
+                // バイナリーファイルの保存
+                filePath += ".hod";
+                BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.CreateNew));
                 saveToBinary(ref bw);
                 bw.Close();
             }
-            else if (type == 1)
-                saveToXML(folder);
+            if (type == 1)
+            {
+                // XMLファイルの保存
+                filePath += ".xml";
+                saveToXML(subFolder);
+            }
         }
 
         public void saveToXML(string folder)
         {
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
-            using (XmlWriter xw = XmlWriter.Create(Path.Combine(folder, filename + ".xml"), xws))
+            xws.ConformanceLevel = ConformanceLevel.Auto;
+            xws.CheckCharacters = true;
+
+            // ファイル名の作成
+            string invalidChars = new string(Path.GetInvalidPathChars());
+            string fileName = Path.GetInvalidFileNameChars()
+                .Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_")) + ".xml";
+            string filePath = Path.Combine(folder, fileName);
+
+            using (XmlWriter xw = XmlWriter.Create(filePath, xws))
             {
                 xw.WriteStartDocument();
                 xw.WriteStartElement("HOD");
                 for (int i = 0; i < parts.Count; i++)
                 {
                     xw.WriteStartElement("Part");
-                    xw.WriteAttributeString("name", parts[i].name);
-                    xw.WriteAttributeString("treeDepth", parts[i].treeDepth.ToString());
-                    xw.WriteAttributeString("childCount", parts[i].childCount.ToString());
+                    xw.WriteAttributeString("name", XmlConvert.EncodeName(parts[i].name));
+                    xw.WriteAttributeString("treeDepth", XmlConvert.ToString(parts[i].treeDepth));
+                    xw.WriteAttributeString("childCount", XmlConvert.ToString(parts[i].childCount));
 
                     xw.WriteStartElement("Rotation");
-                    xw.WriteAttributeString("x", parts[i].rotation.x.ToString());
-                    xw.WriteAttributeString("y", parts[i].rotation.y.ToString());
-                    xw.WriteAttributeString("z", parts[i].rotation.z.ToString());
-                    xw.WriteAttributeString("w", parts[i].rotation.w.ToString());
+                    xw.WriteAttributeString("x", XmlConvert.ToString(parts[i].rotation.x));
+                    xw.WriteAttributeString("y", XmlConvert.ToString(parts[i].rotation.y));
+                    xw.WriteAttributeString("z", XmlConvert.ToString(parts[i].rotation.z));
+                    xw.WriteAttributeString("w", XmlConvert.ToString(parts[i].rotation.w));
                     xw.WriteEndElement();
 
                     xw.WriteStartElement("Scale");
-                    xw.WriteAttributeString("x", parts[i].scale.x.ToString());
-                    xw.WriteAttributeString("y", parts[i].scale.y.ToString());
-                    xw.WriteAttributeString("z", parts[i].scale.z.ToString());
+                    xw.WriteAttributeString("x", XmlConvert.ToString(parts[i].scale.x));
+                    xw.WriteAttributeString("y", XmlConvert.ToString(parts[i].scale.y));
+                    xw.WriteAttributeString("z", XmlConvert.ToString(parts[i].scale.z));
                     xw.WriteEndElement();
 
                     xw.WriteStartElement("Position");
-                    xw.WriteAttributeString("x", parts[i].position.x.ToString());
-                    xw.WriteAttributeString("y", parts[i].position.y.ToString());
-                    xw.WriteAttributeString("z", parts[i].position.z.ToString());
+                    xw.WriteAttributeString("x", XmlConvert.ToString(parts[i].position.x));
+                    xw.WriteAttributeString("y", XmlConvert.ToString(parts[i].position.y));
+                    xw.WriteAttributeString("z", XmlConvert.ToString(parts[i].position.z));
                     xw.WriteEndElement();
 
                     xw.WriteStartElement("Flag");
-                    xw.WriteAttributeString("value", parts[i].flag.ToString());
+                    xw.WriteAttributeString("value", XmlConvert.ToString(parts[i].flag));
                     xw.WriteEndElement();
 
                     xw.WriteStartElement("Unk");
-                    xw.WriteAttributeString("x", parts[i].unk.x.ToString());
-                    xw.WriteAttributeString("y", parts[i].unk.y.ToString());
-                    xw.WriteAttributeString("z", parts[i].unk.z.ToString());
+                    xw.WriteAttributeString("x", XmlConvert.ToString(parts[i].unk.x));
+                    xw.WriteAttributeString("y", XmlConvert.ToString(parts[i].unk.y));
+                    xw.WriteAttributeString("z", XmlConvert.ToString(parts[i].unk.z));
                     xw.WriteEndElement();
 
                     xw.WriteEndElement();
