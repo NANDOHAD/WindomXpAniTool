@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,42 +123,88 @@ namespace WindomXpAniTool
 
         public void SaveToFile(string folder, int type)
         {
-            // ディレクトリーの作成
-            DirectoryInfo di = Directory.CreateDirectory(folder);
-
-            // ファイル名の作成
-            string invalidChars = new string(Path.GetInvalidPathChars());
-            string fileName = Path.GetInvalidFileNameChars().Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_"));
-
-            // フォルダ名の作成
             string subFolder = "";
-            for (int i = 0; i < 100; i++)
+            string fileName = "";
+            if (folder != null)
             {
-                subFolder = Path.Combine(folder, i.ToString("D2"));
-                if (!Directory.Exists(subFolder))
+                // ディレクトリーの作成
+                DirectoryInfo di = Directory.CreateDirectory(folder);
+
+                // ファイル名の作成
+                string invalidChars = new string(Path.GetInvalidPathChars());
+                fileName = Path.GetInvalidFileNameChars().Aggregate(filename, (current, c) => current.Replace(c.ToString(), "_"));
+                if (string.Equals(fileName, "robo.hod", StringComparison.OrdinalIgnoreCase))
                 {
-                    Directory.CreateDirectory(subFolder);
-                    break;
+                    fileName = "robo";
+                    subFolder = Path.Combine(folder, subFolder);
+                }
+                else
+                {
+                    // フォルダ名の作成
+                    for (int i = 0; i < 100; i++)
+                    {
+                        subFolder = Path.Combine(folder, i.ToString("D2"));
+                        if (!Directory.Exists(subFolder))
+                        {
+                            Directory.CreateDirectory(subFolder);
+                            break;
+                        }
+                    }
                 }
             }
+
 
             // ファイルパスの作成
             string filePath = Path.Combine(subFolder, fileName);
 
-            if (type == 0)
+            if (fileName != "robo")
             {
-                // バイナリーファイルの保存
-                filePath += ".hod";
-                BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.CreateNew));
-                SaveToBinary(ref bw);
-                bw.Close();
+                if (type == 0)
+                {
+                    // バイナリーファイルの保存
+                    //filePath += ".hod";
+                    BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.CreateNew));
+                    SaveToBinary(ref bw);
+                    bw.Close();
+
+                }
+                if (type == 1)
+                {
+                    // XMLファイルの保存
+                    //filePath += ".xml";
+                    saveToXML(subFolder);
+                }
 
             }
-            if (type == 1)
+            if (fileName == "robo")
             {
-                // XMLファイルの保存
-                filePath += ".xml";
-                saveToXML(subFolder);
+                // ファイルが存在するかどうかチェック
+                if (File.Exists(filePath + ".hod") || File.Exists(filePath + ".xml"))
+                {
+                    // ファイルが存在する場合、ダイアログを表示
+                    System.Windows.Forms.MessageBox.Show("既にRobo.hodが展開されています。 " , "既存のファイルを削除してから実行してください。", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                    return;
+                }
+                else
+                {
+                    if (type == 0)
+                    {
+                        // バイナリーファイルの保存
+                        filePath += ".hod";
+                        BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.CreateNew));
+                        SaveToBinary(ref bw);
+                        bw.Close();
+                        //System.Windows.Forms.MessageBox.Show("Robo.hodの展開が完了しました。" + filePath, "", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+
+                    }
+                    if (type == 1)
+                    {
+                        // XMLファイルの保存
+                        filePath += ".xml";
+                        saveToXML(subFolder);
+                        //System.Windows.Forms.MessageBox.Show("Robo.hodの展開が完了しました。" + filePath, "", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                    }
+                }
             }
         }
 
@@ -230,21 +276,35 @@ namespace WindomXpAniTool
             }
         }
 
-        public void loadFromFile(string filepath, ref hod2v0 structure)
+        public void loadFromFile(string folderPath, ref hod2v0 structure)
         {
-            FileInfo f = new FileInfo(filepath);
-            helper.log(f.Extension);
-            if (f.Extension == ".hod")
+            // 親ディレクトリの取得
+            string parentFolderPath = Directory.GetParent(folderPath).FullName;
+
+            for (int i = 0; i < 100; i++)
             {
-                BinaryReader br = new BinaryReader(File.Open(filepath, FileMode.Open, FileAccess.Read));
-                loadFromBinary(ref br, ref structure);
-                br.Close();
-            }
-            else if (f.Extension == ".xml")
-            {
-                loadFromXML(filepath);
+                string subFolder = Path.Combine(parentFolderPath, i.ToString("D2"));
+                //Console.WriteLine($"Checking subfolder: {subFolder}");
+                if (Directory.Exists(subFolder))
+                {
+                    // バイナリファイルを読み込む
+                    foreach (string file in Directory.GetFiles(subFolder, "*.hod"))
+                    {
+                        BinaryReader br = new BinaryReader(File.Open(file, FileMode.Open, FileAccess.Read));
+                        loadFromBinary(ref br, ref structure);
+                        br.Close();
+                    }
+
+                    // XMLファイルを読み込む
+                    foreach (string file in Directory.GetFiles(subFolder, "*.xml"))
+                    {
+                        loadFromXML(file);
+                    }
+                }
             }
         }
+
+
 
         public void loadFromXML(string filepath)
         {

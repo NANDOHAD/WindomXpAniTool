@@ -22,7 +22,7 @@ namespace WindomXpAniTool
         private void loadAniToolStripMenuItem_Click(object sender, EventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "Windom Animation Data (.ani)|*.ani";
+            ofd.Filter = "Windom XP アニメーションデータ (.ani)|*.ani";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 // 一度に削除する要素をキャプチャするために別リストを使用
@@ -71,11 +71,11 @@ namespace WindomXpAniTool
                         lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
                     }
 
-                    MsgLog.Text = "Ani File has been loaded";
+                    MsgLog.Text = "成功：Aniファイルのロードが完了しました。";
                 }
                 catch
                 {
-                    MsgLog.Text = "Error - Couldn't Load File";
+                    MsgLog.Text = "失敗：Aniファイルがロードできませんでした。";
                 }
             }
         }
@@ -90,13 +90,20 @@ namespace WindomXpAniTool
                     if (lstAnimations.GetSelected(i))
                     {
                         string dir = Path.Combine(di.Parent.Name, helper.replaceUnsupportedChar(lstAnimations.Items[i].ToString()));
-                        switch (cbScriptFormat.SelectedIndex)
+                        if (Directory.Exists(dir))
+                        {
+                            MessageBox.Show("既にアニメーションが展開されています。 " + dir, "既存のファイルを削除してから実行してください。", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                            break;
+                        }
+                            switch (cbScriptFormat.SelectedIndex)
                         {
                             case 0:
                                 file.animations[i].extractToFolderXML(dir, cbHodFormat.SelectedIndex);
+                                MsgLog.Text = "成功：アニメーションの展開が完了しました。";
                                 break;
                             case 1:
                                 file.animations[i].extractToFolderTXT(dir, cbHodFormat.SelectedIndex);
+                                MsgLog.Text = "成功：アニメーションの展開が完了しました。";
                                 break;
                         }
 
@@ -106,17 +113,17 @@ namespace WindomXpAniTool
             else
             {
                 if (lstAnimations.SelectedItems.Count <= 0)
-                    MsgLog.Text = "No animation has been selected";
+                    MsgLog.Text = "警告：選択されたアイテムにアニメーションが含まれていません。";
                 else
                 {
                     if (cbScriptFormat.SelectedIndex < 0 && cbHodFormat.SelectedIndex < 0)
-                        MsgLog.Text = "Script Format and Hod Format not selected";
+                        MsgLog.Text = "失敗：ファイルフォーマットが選択されていません。";
                     else if (cbScriptFormat.SelectedIndex < 0)
-                        MsgLog.Text = "Script Format not selected";
+                        MsgLog.Text = "失敗：Scriptファイルのフォーマットが選択されていません。";
                     else if (cbHodFormat.SelectedIndex > 0)
-                        MsgLog.Text = "Hod Format not selected";
+                        MsgLog.Text = "失敗：Hodファイルのフォーマットが選択されていません。";
                     else
-                        MsgLog.Text = "Error - We have an hacker here.";
+                        MsgLog.Text = "失敗：例外エラーが発生しました。";
                 }
             }
         }
@@ -136,20 +143,22 @@ namespace WindomXpAniTool
                         {
                             file.structure.SaveToFile(di.Parent.Name, cbHodFormat.SelectedIndex);
                         }));
+                        MsgLog.Text = "成功：Robo.hodをフォルダに出力しました。";
                     }
                     else
                     {
                         file.structure.SaveToFile(di.Parent.Name, cbHodFormat.SelectedIndex);
+                        MsgLog.Text = "成功：Robo.hodをフォルダに出力しました。";
                     }
                 }
                 else
                 {
-                    MsgLog.Text = "Hod Format not selected";
+                    MsgLog.Text = "Hodファイルのフォーマットが選択されていません。";
                 }
             }
             else
             {
-                MsgLog.Text = "File or file structure is null.";
+                MsgLog.Text = "失敗：ファイル構造が存在しませんでした。";
             }
         }
 
@@ -172,6 +181,7 @@ namespace WindomXpAniTool
                             file.save(sfd.FileName);
                         }
                     }));
+                    MsgLog.Text = "成功：Aniファイルを保存しました。";
                 }
                 else
                 {
@@ -179,11 +189,12 @@ namespace WindomXpAniTool
                     {
                         file.save(sfd.FileName);
                     }
+                    MsgLog.Text = "成功：Aniファイルを保存しました。";
                 }
             }
             else
             {
-                MsgLog.Text = "File is null.";
+                MsgLog.Text = "失敗：ファイルが存在しませんでした。";
             }
         }
 
@@ -210,6 +221,7 @@ namespace WindomXpAniTool
             {
                 lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
             }
+            MsgLog.Text = "成功：アニメーションの取り込みが完了しました。";
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -220,6 +232,8 @@ namespace WindomXpAniTool
             try
             {
                 DirectoryInfo di = new DirectoryInfo(file._filename);
+
+
                 di = di.Parent;
 
                 if (di == null || di.Parent == null)
@@ -228,11 +242,11 @@ namespace WindomXpAniTool
                     return;
                 }
 
-                string parentPath = di.Parent.FullName;
+                string parentPath = di.Name;
 
                 // 無効な文字を置き換える
                 parentPath = ReplaceInvalidPathChars(parentPath);
-                string exten = ".xml";
+                string exten = "";
                 string cleanedFilename = ReplaceInvalidPathChars(file.structure.filename) + exten;
 
                 string combinedPath = Path.Combine(parentPath, cleanedFilename);
@@ -247,6 +261,7 @@ namespace WindomXpAniTool
                 }
 
                 file.structure.loadFromFile(combinedPath);
+                MsgLog.Text = "成功：Robo.hodをフォルダから取り込みました。";
             }
             catch (ArgumentException ex)
             {
@@ -326,7 +341,7 @@ namespace WindomXpAniTool
             }
             else
             {
-                MsgLog.Text = "File is null.";
+                MsgLog.Text = "失敗：ファイルが存在しませんでした。";
             }
         }
 
@@ -673,7 +688,7 @@ namespace WindomXpAniTool
             }
             else
             {
-                MsgLog.Text = "File, file animations, or recent files are invalid.";
+                MsgLog.Text = "警告：アニメーション、または最近使用したファイルが無効です。";
             }
         }
 
@@ -713,9 +728,28 @@ namespace WindomXpAniTool
             }
             else
             {
-                MsgLog.Text = "File or file animations is null.";
+                MsgLog.Text = "警告：ファイル、またはアニメーションが存在しません。";
             }
         }
 
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label2_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
