@@ -95,7 +95,7 @@ namespace WindomXpAniTool
                             MessageBox.Show("既にアニメーションが展開されています。 " + dir, "既存のファイルを削除してから実行してください。", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
                             break;
                         }
-                            switch (cbScriptFormat.SelectedIndex)
+                        switch (cbScriptFormat.SelectedIndex)
                         {
                             case 0:
                                 file.animations[i].extractToFolderXML(dir, cbHodFormat.SelectedIndex);
@@ -208,10 +208,20 @@ namespace WindomXpAniTool
                     string dir = Path.Combine(di.Parent.Name, helper.replaceUnsupportedChar(lstAnimations.Items[i].ToString()));
                     if (Directory.Exists(dir))
                     {
-                        if (File.Exists(Path.Combine(dir, "script.xml"))) 
-                            file.animations[i].injectFromFolderXML(dir, ref file.structure);
+                        if (File.Exists(Path.Combine(dir, "script.xml")))
+                        {
+                            // 新しい hod2v1 インスタンスを作成
+                            hod2v1 nFrame = new hod2v1(lstAnimations.Items[i].ToString());
+                            nFrame.loadFromFile(Path.Combine(dir, nFrame.filename), ref file.structure); // hodファイルを読み込む
+                            file.animations[i].frames.Add(nFrame); // framesリストに追加
+                        }
                         else if (File.Exists(Path.Combine(dir, "script.txt")))
-                            file.animations[i].injectFromFolderTXT(dir, ref file.structure);
+                        {
+                            // 新しい hod2v1 インスタンスを作成
+                            hod2v1 nFrame = new hod2v1(lstAnimations.Items[i].ToString());
+                            nFrame.loadFromFile(Path.Combine(dir, nFrame.filename), ref file.structure); // hodファイルを読み込む
+                            file.animations[i].frames.Add(nFrame); // framesリストに追加
+                        }
                     }
                 }
             }
@@ -329,15 +339,15 @@ namespace WindomXpAniTool
             if (file != null)
             {
                 try
-            {
-                StreamWriter sw = new StreamWriter("Settings.txt");
-                sw.WriteLine(cbScriptFormat.SelectedIndex);
-                sw.WriteLine(cbHodFormat.SelectedIndex);
-                for (int i = 0; i < recentFiles.Count; i++)
-                    sw.WriteLine(recentFiles[i]);
-                sw.Close();
-            }
-            catch { };
+                {
+                    StreamWriter sw = new StreamWriter("Settings.txt");
+                    sw.WriteLine(cbScriptFormat.SelectedIndex);
+                    sw.WriteLine(cbHodFormat.SelectedIndex);
+                    for (int i = 0; i < recentFiles.Count; i++)
+                        sw.WriteLine(recentFiles[i]);
+                    sw.Close();
+                }
+                catch { };
             }
             else
             {
