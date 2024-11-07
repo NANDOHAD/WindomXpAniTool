@@ -201,11 +201,11 @@ namespace WindomXpAniTool
         private void button4_Click(object sender, EventArgs e)
         {
             DirectoryInfo di = new DirectoryInfo(file._filename);
-            for (int i = 0; i < lstAnimations.Items.Count; i++)
+            for (int i = 0; i == lstAnimations.Items.Count; i++)
             {
                 if (lstAnimations.GetSelected(i))
                 {
-                    string dir = Path.Combine(di.Parent.Name, helper.replaceUnsupportedChar(lstAnimations.Items[i].ToString()));
+                    string dir = Path.Combine(di.Parent.Name,lstAnimations.Items[i].ToString());
                     if (Directory.Exists(dir))
                     {
                         if (File.Exists(Path.Combine(dir, "script.xml")))
@@ -229,7 +229,7 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
-                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name);
+                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name + " ");
             }
             MsgLog.Text = "成功：アニメーションの取り込みが完了しました。";
         }
