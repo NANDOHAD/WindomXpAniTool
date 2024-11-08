@@ -415,15 +415,15 @@ namespace WindomXpAniTool
             XmlNodeList hodlist = hodNode.ChildNodes;
 
             frames.Clear();
-
+            //string parentFolderPath = Directory.GetParent(folder).FullName;
             for (int i = 0; i < hodlist.Count; i++)
 
             {
-
+                int folderCount = 0;
                 hod2v1 nFrame = new hod2v1(hodlist.Item(i).InnerText);
-
-                nFrame.loadFromFile(Path.Combine(folder, nFrame.filename), ref structure);
-
+                string hodfolder = Path.Combine(folder, i.ToString("D2"));
+                nFrame.loadFromFile(Path.Combine(hodfolder, nFrame.filename), ref structure);
+                folderCount = folderCount + 1;
                 frames.Add(nFrame);
 
             }
@@ -498,7 +498,7 @@ namespace WindomXpAniTool
 
             // 正常に処理が完了した場合にメッセージボックスを表示
 
-            //MessageBox.Show("XMLの読み込みが正常に完了しました。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //MessageBox.Show("取り込みが正常に完了しました。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
         }
 
@@ -766,5 +766,3 @@ namespace WindomXpAniTool
     }
 
 }
-
-

@@ -249,8 +249,10 @@ namespace WindomXpAniTool
         public void loadFromFile(string folderPath)
         {
             // 親ディレクトリの取得
+            Console.WriteLine("親ディレクトリ取得開始");
             string parentFolderPath = Directory.GetParent(folderPath).FullName;
             // 下位ディレクトリを探索
+            Console.WriteLine("下位ディレクトリ探索開始");
             for (int i = 0; i < 100; i++)
             {
                 string subFolder = Path.Combine(parentFolderPath, i.ToString("D2"));

@@ -23,7 +23,7 @@ namespace WindomXpAniTool
     class hod2v1
     {
         public string filename;
-        //public byte[] data;
+        public byte[] data;
         public List<hod2v1_Part> parts;
         public hod2v1(string name)
         {
@@ -32,12 +32,13 @@ namespace WindomXpAniTool
 
         public bool loadFromBinary(ref BinaryReader br, ref hod2v0 structure)
         {
-
+            //Console.WriteLine("バイナリ読み込み開始");
             //data = br.ReadBytes(11 + (partCount * 179));
             string signature = new string(br.ReadChars(3));
             int version = br.ReadInt32();
             if (signature == "HD2" && version == 1)
             {
+                //Console.WriteLine("HODファイルがV2です");
                 parts = new List<hod2v1_Part>();
                 int partCount = br.ReadInt32();
                 for (int i = 0; i < partCount; i++)
@@ -276,34 +277,81 @@ namespace WindomXpAniTool
             }
         }
 
+        public void loadFromFile2(string filePath, ref hod2v0 structure)
+        {
+            BinaryReader brr = new BinaryReader(File.Open(filePath, FileMode.Open));
+            Console.WriteLine("ファイルパス: " + filePath);
+            try
+            {
+                //using (BinaryReader br = new BinaryReader(File.Open(filePath, FileMode.Open)))
+                {
+                    //Console.WriteLine("ファイルパス: " + filePath);
+                    //string signature = new string(br.ReadChars(3));
+                    //Console.WriteLine("ファイルシグネチャ: " + signature);
+                    //if (signature != "HD2")
+                    //{
+                    //    Console.WriteLine("無効なHODファイル: " + filePath);
+                        //return false;
+                    //}
+                    
+                    loadFromBinary(ref brr, ref structure);
+                    brr.Close();
+                    //parts = new List<hod2v1_Part>();
+                    //int partCount = br.ReadInt32();
+                    //Console.WriteLine("パート数: " + partCount);
+                    //for (int i = 0; i < partCount; i++)
+                    //{
+                    //    hod2v1_Part part = new hod2v1_Part();
+                        // 各プロパティの読み込み
+                    //     part.name = br.ReadString();
+                    //    parts.Add(part);
+                    //    Console.WriteLine("パート " + i + " を読み込みました: " + part.name);
+                    //}
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("HODファイルの読み込み中にエラーが発生しました: " + ex.Message);
+                //return false;
+            }
+
+            //return true;
+        }
+
+
         public void loadFromFile(string folderPath, ref hod2v0 structure)
         {
             // 親ディレクトリの取得
             string parentFolderPath = Directory.GetParent(folderPath).FullName;
+            Console.WriteLine("親ディレクトリ: " + parentFolderPath);
+            // 下位ディレクトリを探索
+            //Console.WriteLine("下位ディレクトリ探索開始");
+            //for (int i = 0; i < 100; i++)
+            //{
+                //string subFolder = Path.Combine(parentFolderPath, i.ToString("D2"));
 
-            for (int i = 0; i < 100; i++)
-            {
-                string subFolder = Path.Combine(parentFolderPath, i.ToString("D2"));
-                //Console.WriteLine($"Checking subfolder: {subFolder}");
-                if (Directory.Exists(subFolder))
-                {
+                //if (Directory.Exists(folderPath))
+                //{
                     // バイナリファイルを読み込む
-                    foreach (string file in Directory.GetFiles(subFolder, "*.hod"))
+                    if (folderPath.EndsWith(".hod"))
                     {
-                        BinaryReader br = new BinaryReader(File.Open(file, FileMode.Open, FileAccess.Read));
+                        Console.WriteLine("HODファイル発見");
+                        BinaryReader br = new BinaryReader(File.Open(folderPath, FileMode.Open, FileAccess.Read));
                         loadFromBinary(ref br, ref structure);
                         br.Close();
+                        Console.WriteLine("書き込み完了: " + folderPath);
                     }
 
                     // XMLファイルを読み込む
-                    foreach (string file in Directory.GetFiles(subFolder, "*.xml"))
+                    if (folderPath.EndsWith(".xml"))
                     {
-                        loadFromXML(file);
+                        Console.WriteLine("XMLファイル発見");
+                        loadFromXML(folderPath);
+                        Console.WriteLine("書き込み完了: " + folderPath);
                     }
-                }
-            }
+                //}
+            //}
         }
-
 
 
         public void loadFromXML(string filepath)

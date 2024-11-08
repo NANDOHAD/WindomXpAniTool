@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using System.Xml;
 namespace WindomXpAniTool
 {
     public partial class Form1 : Form
@@ -170,8 +171,6 @@ namespace WindomXpAniTool
                 sfd.Filter = "Windom Animation Data (.ani)|*.ani";
                 DirectoryInfo di = new DirectoryInfo(file._filename);
                 sfd.InitialDirectory = di.FullName;
-
-                // UIスレッドでShowDialogを呼び出す
                 if (this.InvokeRequired)
                 {
                     this.Invoke(new Action(() =>
@@ -200,27 +199,75 @@ namespace WindomXpAniTool
 
         private void button4_Click(object sender, EventArgs e)
         {
+            Console.WriteLine("ボタン4が押下されました");
             DirectoryInfo di = new DirectoryInfo(file._filename);
-            for (int i = 0; i == lstAnimations.Items.Count; i++)
+            for (int i = 0; i < lstAnimations.Items.Count; i++)
             {
                 if (lstAnimations.GetSelected(i))
                 {
-                    string dir = Path.Combine(di.Parent.Name,lstAnimations.Items[i].ToString());
+                    Console.WriteLine("アニメが選択されています");
+                    string dir = Path.Combine(di.Parent.Name, lstAnimations.Items[i].ToString());
                     if (Directory.Exists(dir))
                     {
-                        if (File.Exists(Path.Combine(dir, "script.xml")))
+                        // ここでframesをクリア
+                        file.animations[i].frames.Clear();
+
+                        int hodFileCount = 0;
+                        string scriptXmlPath = Path.Combine(dir, "script.xml");
+                        if (File.Exists(scriptXmlPath))
                         {
-                            // 新しい hod2v1 インスタンスを作成
-                            hod2v1 nFrame = new hod2v1(lstAnimations.Items[i].ToString());
-                            nFrame.loadFromFile(Path.Combine(dir, nFrame.filename), ref file.structure); // hodファイルを読み込む
-                            file.animations[i].frames.Add(nFrame); // framesリストに追加
+                            Console.WriteLine("ScriptファイルがXMLで見つかりました");
+                            XmlDocument doc = new XmlDocument();
+                            doc.Load(scriptXmlPath);
+                            hodFileCount = doc.SelectNodes("//Hod_List/Hod").Count;
+                            Console.WriteLine("HODファイル数: " + hodFileCount);
                         }
                         else if (File.Exists(Path.Combine(dir, "script.txt")))
                         {
-                            // 新しい hod2v1 インスタンスを作成
-                            hod2v1 nFrame = new hod2v1(lstAnimations.Items[i].ToString());
-                            nFrame.loadFromFile(Path.Combine(dir, nFrame.filename), ref file.structure); // hodファイルを読み込む
-                            file.animations[i].frames.Add(nFrame); // framesリストに追加
+                            Console.WriteLine("ScriptファイルがTXTで見つかりました");
+                            string[] lines = File.ReadAllLines(Path.Combine(dir, "script.txt"));
+                            hodFileCount = lines.Count(line => !line.StartsWith("Hod_LIST") && !string.IsNullOrWhiteSpace(line));
+                            Console.WriteLine("HODファイル数: " + hodFileCount);
+                        }
+
+                        for (int j = hodFileCount - 1; j >= 0; j--)
+                        {
+                            Console.WriteLine("探索回数: " + j + "/" + hodFileCount);
+                            string subDir = Path.Combine(dir, j.ToString("D2"));
+                            if (Directory.Exists(subDir))
+                            {
+                                string[] files = Directory.GetFiles(subDir);
+                                //Console.WriteLine("サブディレクトリ内のファイル数: " + files.Length);
+                                if (files.Length == 1)
+                                {
+                                    string hodFilePath = files[0];
+                                    Console.WriteLine("HODファイルパス: " + hodFilePath);
+                                    string hodFileName = Path.GetFileName(hodFilePath);
+                                    hod2v1 nFrame = new hod2v1(hodFileName);
+                                    string parentFolderPath = Directory.GetParent(hodFilePath).FullName;
+                                    try
+                                    {
+                                        bool loadSuccess = true;
+                                        nFrame.loadFromFile(hodFilePath, ref file.structure);
+                                        if (loadSuccess)
+                                        {
+
+                                            file.animations[i].injectFromFolderXML(dir, ref file.structure);
+                                            //file.animations[i].frames.Add(nFrame);
+                                            Console.WriteLine("HODファイルを追加しました: " + hodFilePath);
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("HODファイルの読み込みに失敗しました: " + hodFilePath);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("HODファイルの読み込みに失敗しました: " + ex.Message);
+                                        MessageBox.Show("HODファイルの読み込みに失敗しました: " + ex.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -229,7 +276,7 @@ namespace WindomXpAniTool
             lstAnimations.Items.Clear();
             for (int i = 0; i < file.animations.Count; i++)
             {
-                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name + " ");
+                lstAnimations.Items.Add(i.ToString() + " - " + file.animations[i].name + "");
             }
             MsgLog.Text = "成功：アニメーションの取り込みが完了しました。";
         }
